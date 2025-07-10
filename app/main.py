@@ -25,6 +25,8 @@ app = FastAPI(title="Domain Manager")
 class DomainSchema(BaseModel):
     name: str
     tld: str
+    registration_date: datetime = None
+    expiration_date: datetime = None
 
     class Config:
         orm_mode = True
@@ -33,8 +35,12 @@ class DomainSchema(BaseModel):
 @app.post("/domains/create", response_model=DomainSchema)
 def create_domain(domain: DomainSchema, db: Session = Depends(get_db)):
     """Create a new domain with optional registration_date and auto expiration_date"""
+    reg_date = domain.registration_date or datetime.now(timezone.utc)
+    exp_date = reg_date + timedelta(days=365)
     db_domain = Domain(name=domain.name, 
-                       tld=domain.tld)
+                       tld=domain.tld,
+                       registration_date=reg_date,
+                       expiration_date=exp_date)
     db.add(db_domain)
     db.commit()
     db.refresh(db_domain)
@@ -76,6 +82,13 @@ def delete_domain(domain_id: int, db: Session = Depends(get_db)):
     db.delete(db_domain)
     db.commit()
     return {"message": "Domain deleted successfully"}
+
+@app.get("/domains/expired", response_model=List[DomainSchema])
+def get_expired_domains(db: Session = Depends(get_db)):
+    """Get all expired domains"""
+    now = datetime.utcnow()
+    expired_domains = db.query(Domain).filter(Domain.expiration_date < now).all()
+    return expired_domains
 
 @app.get("/")
 def read_root():

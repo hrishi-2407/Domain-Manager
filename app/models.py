@@ -9,5 +9,8 @@ class Domain(Base):
     id = Column(Integer, primary_key=True, index=True)
     name = Column(String(100))
     tld = Column(String(10))
+    registration_date = Column(DateTime, server_default=func.now())
+    expiration_date = Column(DateTime, server_default=text("DATE_ADD(NOW(), INTERVAL 1 YEAR)"))
+
 
 
